@@ -7,27 +7,35 @@ initial_params = pd.read_csv("data/params.csv", index_col=0)
 population = pd.read_csv("data/population.csv", index_col=0).divide(1e9)
 
 
+def plot_df(df, title, ylabel, inv_lim=False):
+    fig, ax = plt.subplots()
+    df.plot(ax=ax)
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.spines[['right', 'left']].set_visible(False)
+    ax.spines['bottom'].set_visible(
+        False) if inv_lim else ax.spines['top'].set_visible(False)
+    ax.set_xlim([df.index.min(), df.index.max()])
+    ax.set_ylim([df.min().min(), 0]
+                if inv_lim else [0, df.max().max()])
+    return fig
+
+
 def update_graphs(*slider_values):
     params = pd.DataFrame(np.array(slider_values).reshape(
         2, -1), columns=initial_params.columns, index=initial_params.index)
 
-    fig1, ax1 = plt.subplots()
-    population.plot(ax=ax1)
-    ax1.set_title("Populations Over Time")
-    ax1.set_ylabel("Population (Billions)")
+    fig1 = plot_df(population, "Populations Over Time",
+                   "Population (Billions)")
 
     capacity = population.apply(
         lambda x: x*params.loc['range'], axis=1)
-    fig2, ax2 = plt.subplots()
-    capacity.plot(ax=ax2)
-    ax2.set_title("Welfare Capacities Over Time")
-    ax2.set_ylabel("Welfare Capacity (Arbitrary Units)")
+    fig2 = plot_df(capacity, "Welfare Capacities Over Time",
+                   "Welfare Capacity (Arbitrary Units)")
 
     welfare = capacity.apply(lambda x: x*params.loc['value'], axis=1)
-    fig3, ax3 = plt.subplots()
-    welfare.plot(ax=ax3)
-    ax3.set_title("Total Welfare Over Time")
-    ax3.set_ylabel("Total Welfare (Arbitrary Units)")
+    fig3 = plot_df(welfare, "Total Welfare Over Time",
+                   "Total Welfare (Arbitrary Units)", inv_lim=True)
 
     return fig1, fig2, fig3
 
