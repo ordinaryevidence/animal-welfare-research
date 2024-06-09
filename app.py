@@ -6,9 +6,9 @@ import pandas as pd
 color = ["#C15065", "#2C8465", "#BE5915", "#6D3E91", "#CF0A66", "#18470F", "#286BBB", "#883039",
          "#996D39", "#00295B", "#9A5129", "#C4523E", "#A2559C", "#008291", "#578145", "#970046",
          "#00847E", "#B13507", "#4C6A9C", "#00875E", "#B16214", "#8C4569", "#338711", "#D73C50"]
-plt.rcParams['axes.prop_cycle'] = plt.cycler(color=color)
-plt.rcParams['figure.figsize'] = [10, 6]
-plt.rcParams.update({'font.size': 14})
+plt.rcParams.update({'axes.prop_cycle': plt.cycler(color=color),
+                     'figure.figsize': [10, 6],
+                     'font.size': 14})
 
 welfare_params = pd.read_csv("data/welfare-params.csv", index_col=0)
 population = pd.read_csv("data/population.csv", index_col=[0, 1])
@@ -30,32 +30,39 @@ def plot_df(df, title, ylabel, inv_lim=False):
     return fig
 
 
-def update_species_graphs(*slider_values):
+def update_species_graphs(species, *slider_values):
+    if not species:
+        return [plt.figure(), plt.figure(), plt.figure()]
+
     user_welfare_params = pd.DataFrame(np.array(slider_values).reshape(
         2, -1), columns=welfare_params.columns, index=welfare_params.index)
 
-    population_by_species = population.groupby('Year').sum().divide(1e9)
+    population_by_species = population[species].groupby(
+        'Year').sum().divide(1e9)
     population_fig = plot_df(population_by_species, "Populations Over Time",
                              "Population (Billions)")
 
     capacity = population_by_species.apply(
-        lambda x: x*user_welfare_params.loc['range'], axis=1)
+        lambda x: x*user_welfare_params.loc['range', species], axis=1)
     capacity_fig = plot_df(capacity, "Welfare Capacities Over Time",
                            "Welfare Capacity (Arbitrary Units)")
 
     welfare = capacity.apply(
-        lambda x: x*user_welfare_params.loc['value'], axis=1)
+        lambda x: x*user_welfare_params.loc['value', species], axis=1)
     welfare_fig = plot_df(welfare, "Total Welfare Over Time",
                           "Total Welfare (Arbitrary Units)", inv_lim=True)
 
     return [population_fig, capacity_fig, welfare_fig]
 
 
-def update_country_graphs(countries, *slider_values):
+def update_country_graphs(species, countries, *slider_values):
+    if not species or not countries:
+        return [plt.figure(), plt.figure(), plt.figure()]
+
     user_welfare_params = pd.DataFrame(np.array(slider_values).reshape(
         2, -1), columns=welfare_params.columns, index=welfare_params.index)
 
-    population_by_country = population.loc[countries].divide(1e9)
+    population_by_country = population[species].loc[countries].divide(1e9)
     population_fig = plot_df(population_by_country.sum(axis=1).unstack(
         0).rename_axis(columns=None), "Populations Over Time", "Population (Billions)")
 
@@ -72,8 +79,26 @@ def update_country_graphs(countries, *slider_values):
     return [population_fig, capacity_fig, welfare_fig]
 
 
+def update_species(species):
+    sliders = []
+    for column in welfare_params.columns:
+        visible = column in species
+        sliders.append(gr.Slider(visible=visible))
+    return sliders*2
+
+
 with gr.Blocks() as demo:
     gr.Markdown("# Net Global Welfare")
+
+    with gr.Row():
+        species_dropdown = gr.Dropdown(
+            choices=welfare_params.columns.tolist(),
+            value=['Cattle', 'Chickens', 'Pigs',
+                   'Carp', 'Other Fish', 'Shrimp'],
+            multiselect=True,
+            label="Select Species",
+            interactive=True
+        )
 
     species_sliders = []
     with gr.Row():
@@ -111,16 +136,26 @@ with gr.Blocks() as demo:
     species_graphs = [species_population, species_capacity, species_welfare]
     country_graphs = [country_population, country_capacity, country_welfare]
 
+    species_dropdown.change(
+        update_species, inputs=species_dropdown, outputs=species_sliders)
+    species_dropdown.change(update_species_graphs, inputs=[
+                            species_dropdown] + species_sliders, outputs=species_graphs)
+    species_dropdown.change(update_country_graphs, inputs=[
+                            species_dropdown, country_dropdown] + species_sliders, outputs=country_graphs)
+
     for slider in species_sliders:
-        slider.release(update_species_graphs,
-                       inputs=species_sliders, outputs=species_graphs)
+        slider.release(update_species_graphs, inputs=[
+                       species_dropdown] + species_sliders, outputs=species_graphs)
+        slider.release(update_country_graphs, inputs=[
+            species_dropdown, country_dropdown] + species_sliders, outputs=country_graphs)
 
-    country_dropdown.change(update_country_graphs, inputs=[country_dropdown] + species_sliders,
-                            outputs=country_graphs)
+    country_dropdown.change(update_country_graphs, inputs=[
+                            species_dropdown, country_dropdown] + species_sliders, outputs=country_graphs)
 
-    demo.load(update_species_graphs, inputs=species_sliders,
+    demo.load(update_species, inputs=species_dropdown, outputs=species_sliders)
+    demo.load(update_species_graphs, inputs=[species_dropdown] + species_sliders,
               outputs=species_graphs)
-    demo.load(update_country_graphs, inputs=[country_dropdown] + species_sliders,
+    demo.load(update_country_graphs, inputs=[species_dropdown, country_dropdown] + species_sliders,
               outputs=country_graphs)
 
 
