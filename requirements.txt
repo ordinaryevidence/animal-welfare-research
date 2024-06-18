@@ -1,6 +1,6 @@
 anthropic
-gradio
 jupyter
 pandas
+plotly
 python-dotenv
-squigglepy[plots]
+streamlit

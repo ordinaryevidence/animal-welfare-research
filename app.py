@@ -1,162 +1,180 @@
-import gradio as gr
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
+import plotly.express as px
+import streamlit as st
 
-color = ["#C15065", "#2C8465", "#BE5915", "#6D3E91", "#CF0A66", "#18470F", "#286BBB", "#883039",
-         "#996D39", "#00295B", "#9A5129", "#C4523E", "#A2559C", "#008291", "#578145", "#970046",
-         "#00847E", "#B13507", "#4C6A9C", "#00875E", "#B16214", "#8C4569", "#338711", "#D73C50"]
-plt.rcParams.update({'axes.prop_cycle': plt.cycler(color=color),
-                     'figure.figsize': [10, 6],
-                     'font.size': 14})
+idx = pd.IndexSlice
 
-welfare_params = pd.read_csv("data/welfare-params.csv", index_col=0)
-population = pd.read_csv("data/population.csv", index_col=[0, 1])
+
+@st.cache_data
+def load_data():
+    welfare_params = pd.read_csv('data/welfare-params.csv', index_col=0)
+    population = pd.read_csv('data/population.csv', index_col=[0, 1])
+    grants = pd.read_csv('data/grants.csv', index_col=0)
+    return welfare_params, population, grants
+
+
+welfare_params, population, grants = load_data()
 
 
 def plot_df(df, title, ylabel, inv_lim=False):
-    fig, ax = plt.subplots()
-    df.plot(ax=ax)
-    ax.set_title(title)
-    ax.set_ylabel(ylabel)
-    ax.spines[['right', 'left']].set_visible(False)
-    ax.spines['bottom'].set_visible(
-        False) if inv_lim else ax.spines['top'].set_visible(False)
-    ax.set_xlim([df.index.min(), df.index.max()])
-    ax.set_ylim([df.min().min(), 0]
-                if inv_lim else [0, df.max().max()])
-    ax.grid(axis='y')
-    fig.tight_layout()
+    fig = px.line(df, labels={'x': '', 'value': ylabel})
+
+    fig.update_layout(
+        title=title,
+        xaxis=dict(
+            range=[df.index.min(), df.index.max()],
+        ),
+        yaxis=dict(
+            range=[df.min().min(), 0] if inv_lim else [0, df.max().max()],
+        ),
+        legend=dict(
+            title='',
+            x=0,
+            y=0 if inv_lim else 1,
+        ),
+    )
+
     return fig
 
 
-def update_species_graphs(species, *slider_values):
-    if not species:
-        return [plt.figure(), plt.figure(), plt.figure()]
+@st.cache_data
+def update_species_graphs(countries, user_welfare_params):
+    if user_welfare_params.empty:
+        tmp_welfare_params = welfare_params
+    else:
+        tmp_welfare_params = user_welfare_params
 
-    user_welfare_params = pd.DataFrame(np.array(slider_values).reshape(
-        2, -1), columns=welfare_params.columns, index=welfare_params.index)
+    species = tmp_welfare_params.columns
 
-    population_by_species = population[species].groupby(
+    if not countries:
+        tmp_countries = population.index.get_level_values(0).unique().tolist()
+    else:
+        tmp_countries = countries
+
+    figs = []
+
+    population_by_species = population[species].loc[tmp_countries].groupby(
         'Year').sum().divide(1e9)
-    population_fig = plot_df(population_by_species, "Populations Over Time",
-                             "Population (Billions)")
+    figs.append(plot_df(population_by_species, 'Populations Over Time',
+                        'Population (Billions)'))
 
     capacity = population_by_species.apply(
-        lambda x: x*user_welfare_params.loc['range', species], axis=1)
-    capacity_fig = plot_df(capacity, "Welfare Capacities Over Time",
-                           "Welfare Capacity (Arbitrary Units)")
+        lambda x: x*tmp_welfare_params.loc['range', species], axis=1)
+    # figs.append(plot_df(capacity, 'Welfare Capacities Over Time',
+    #                     'Welfare Capacity (Arbitrary Units)'))
 
     welfare = capacity.apply(
-        lambda x: x*user_welfare_params.loc['value', species], axis=1)
-    welfare_fig = plot_df(welfare, "Total Welfare Over Time",
-                          "Total Welfare (Arbitrary Units)", inv_lim=True)
+        lambda x: x*tmp_welfare_params.loc['value', species], axis=1)
+    figs.append(plot_df(welfare, 'Total Welfare Over Time',
+                        'Total Welfare (Arbitrary Units)', inv_lim=True))
 
-    return [population_fig, capacity_fig, welfare_fig]
+    return figs
 
 
-def update_country_graphs(species, countries, *slider_values):
-    if not species or not countries:
-        return [plt.figure(), plt.figure(), plt.figure()]
+@st.cache_data
+def update_countries_graphs(countries, user_welfare_params):
+    if user_welfare_params.empty:
+        tmp_welfare_params = welfare_params
+    else:
+        tmp_welfare_params = user_welfare_params
 
-    user_welfare_params = pd.DataFrame(np.array(slider_values).reshape(
-        2, -1), columns=welfare_params.columns, index=welfare_params.index)
+    species = tmp_welfare_params.columns
 
-    population_by_country = population[species].loc[countries].divide(1e9)
-    population_fig = plot_df(population_by_country.sum(axis=1).unstack(
-        0).rename_axis(columns=None), "Populations Over Time", "Population (Billions)")
+    if not countries:
+        tmp_countries = population.index.get_level_values(0).unique().tolist()
+        population_by_country = pd.concat([population[species].groupby(
+            'Year').sum().divide(1e9)], keys=['World'])
+    else:
+        tmp_countries = countries
+        population_by_country = population[species].loc[tmp_countries].divide(
+            1e9)
+
+    figs = []
+
+    figs.append(plot_df(population_by_country.sum(axis=1).unstack(
+        0).rename_axis(columns=None), 'Populations Over Time', 'Population (Billions)'))
 
     capacity = population_by_country.apply(
-        lambda x: x*user_welfare_params.loc['range'], axis=1)
-    capacity_fig = plot_df(capacity.sum(axis=1).unstack(
-        0).rename_axis(columns=None), "Welfare Capacities Over Time", "Welfare Capacity (Arbitrary Units)")
+        lambda x: x*tmp_welfare_params.loc['range'], axis=1)
+    # figs.append(plot_df(capacity.sum(axis=1).unstack(
+    #     0).sum(axis=1).rename('World'), 'Welfare Capacities Over Time', 'Welfare Capacity (Arbitrary Units'))
 
     welfare = capacity.apply(
-        lambda x: x*user_welfare_params.loc['value'], axis=1)
-    welfare_fig = plot_df(welfare.sum(axis=1).unstack(
-        0).rename_axis(columns=None), "Total Welfare Over Time", "Total Welfare (Arbitrary Units)", inv_lim=True)
+        lambda x: x*tmp_welfare_params.loc['value'], axis=1)
+    figs.append(plot_df(welfare.sum(axis=1).unstack(
+        0).rename_axis(columns=None), 'Total Welfare Over Time', 'Total Welfare (Arbitrary Units)', inv_lim=True))
 
-    return [population_fig, capacity_fig, welfare_fig]
-
-
-def update_species(species):
-    sliders = []
-    for column in welfare_params.columns:
-        visible = column in species
-        sliders.append(gr.Slider(visible=visible))
-    return sliders*2
+    return figs
 
 
-with gr.Blocks() as demo:
-    gr.Markdown("# Net Global Welfare")
+st.markdown('# Animal Welfare Dashboard')
 
-    with gr.Row():
-        species_dropdown = gr.Dropdown(
-            choices=welfare_params.columns.tolist(),
-            value=['Cattle', 'Chickens', 'Pigs',
-                   'Carp', 'Other Fish', 'Shrimp'],
-            multiselect=True,
-            label="Select Species",
-            interactive=True
-        )
+st.markdown('## Net Global Welfare')
 
-    species_sliders = []
-    with gr.Row():
-        with gr.Column():
-            gr.Markdown("### Welfare Range (0 to 1)")
-            for col in welfare_params.columns:
-                species_sliders.append(gr.Slider(
-                    minimum=0, maximum=1, value=welfare_params.loc['range', col], label=col))
+species = st.multiselect('Select Species', welfare_params.columns, default=[
+    'Cattle', 'Chickens', 'Pigs', 'Carp', 'Other Fish', 'Shrimp'])
+if not species:
+    species = welfare_params.columns
 
-        with gr.Column():
-            gr.Markdown("### Welfare Value (-1 to 1)")
-            for col in welfare_params.columns:
-                species_sliders.append(gr.Slider(
-                    minimum=-1, maximum=1, value=welfare_params.loc['value', col], label=col))
+with st.expander('Welfare Parameters'):
+    range_col, value_col = st.columns(2)
+    user_welfare_params = pd.DataFrame(
+        index=welfare_params.index, columns=species)
+    with range_col:
+        st.markdown('### Welfare Range (0 to 1)')
+        for col in species:
+            user_welfare_params.loc['range', col] = st.slider(
+                col, 0.0, 1.0, welfare_params.loc['range', col])
 
-    with gr.Row():
-        species_population = gr.Plot(show_label=False)
-        species_capacity = gr.Plot(show_label=False)
-        species_welfare = gr.Plot(show_label=False)
-
-    with gr.Row():
-        country_dropdown = gr.Dropdown(
-            choices=population.index.get_level_values(0).unique().tolist(),
-            value=['China', 'India', 'United States of America'],
-            multiselect=True,
-            label="Select Countries",
-            interactive=True
-        )
-
-    with gr.Row():
-        country_population = gr.Plot(show_label=False)
-        country_capacity = gr.Plot(show_label=False)
-        country_welfare = gr.Plot(show_label=False)
-
-    species_graphs = [species_population, species_capacity, species_welfare]
-    country_graphs = [country_population, country_capacity, country_welfare]
-
-    species_dropdown.change(
-        update_species, inputs=species_dropdown, outputs=species_sliders)
-    species_dropdown.change(update_species_graphs, inputs=[
-                            species_dropdown] + species_sliders, outputs=species_graphs)
-    species_dropdown.change(update_country_graphs, inputs=[
-                            species_dropdown, country_dropdown] + species_sliders, outputs=country_graphs)
-
-    for slider in species_sliders:
-        slider.release(update_species_graphs, inputs=[
-                       species_dropdown] + species_sliders, outputs=species_graphs)
-        slider.release(update_country_graphs, inputs=[
-            species_dropdown, country_dropdown] + species_sliders, outputs=country_graphs)
-
-    country_dropdown.change(update_country_graphs, inputs=[
-                            species_dropdown, country_dropdown] + species_sliders, outputs=country_graphs)
-
-    demo.load(update_species, inputs=species_dropdown, outputs=species_sliders)
-    demo.load(update_species_graphs, inputs=[species_dropdown] + species_sliders,
-              outputs=species_graphs)
-    demo.load(update_country_graphs, inputs=[species_dropdown, country_dropdown] + species_sliders,
-              outputs=country_graphs)
+    with value_col:
+        st.markdown('### Welfare Value (-1 to 1)')
+        for col in species:
+            user_welfare_params.loc['value', col] = st.slider(
+                col, -1.0, 1.0, welfare_params.loc['value', col])
 
 
-demo.launch()
+countries = st.multiselect(
+    'Select Countries', population.index.get_level_values(0).unique().tolist(), default=[
+        'China', 'India', 'United States of America'])
+
+species_col, country_col = st.columns(2)
+with species_col:
+    figs = update_species_graphs(countries, user_welfare_params)
+    st.markdown('### Species Graphs')
+    for fig in figs:
+        st.plotly_chart(fig, use_container_width=True)
+
+with country_col:
+    figs = update_countries_graphs(countries, user_welfare_params)
+    st.markdown('### Country Graphs')
+    for fig in figs:
+        st.plotly_chart(fig, use_container_width=True)
+
+st.markdown('## Animal Welfare Grants')
+
+st.markdown('### By Organization')
+
+grants_by_org = grants.pivot_table(
+    columns='Organization', index='Year', values='Amount', aggfunc='sum')
+grants_by_org['Total'] = grants_by_org.sum(axis=1)
+
+st.dataframe(grants_by_org, column_config={
+    'Year': st.column_config.NumberColumn(format='%d'),
+    **{key: st.column_config.NumberColumn(step=1) for key in grants_by_org.columns}
+}, use_container_width=True)
+
+st.markdown('### By Receipient')
+
+grants_by_recipient = grants.groupby(
+    'Recipient')['Amount'].sum().sort_values(ascending=False)
+st.dataframe(grants_by_recipient, column_config={
+    'Recipient': st.column_config.TextColumn(width='large'),
+    'Amount': st.column_config.NumberColumn(step=1)
+}, use_container_width=True)
+
+st.markdown('### All')
+
+st.dataframe(grants, column_config={
+    'Year': st.column_config.NumberColumn(format='%d'),
+    'Amount': st.column_config.NumberColumn(step=1)
+}, use_container_width=True, hide_index=True)
