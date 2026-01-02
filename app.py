@@ -142,13 +142,13 @@ with species_col:
     figs = update_species_graphs(countries, user_welfare_params)
     st.markdown('### Species Graphs')
     for fig in figs:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 with country_col:
     figs = update_countries_graphs(countries, user_welfare_params)
     st.markdown('### Country Graphs')
     for fig in figs:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 st.markdown('## Animal Welfare Grants')
 
@@ -161,7 +161,7 @@ grants_by_org['Total'] = grants_by_org.sum(axis=1)
 st.dataframe(grants_by_org, column_config={
     'Year': st.column_config.NumberColumn(format='%d'),
     **{key: st.column_config.NumberColumn(step=1) for key in grants_by_org.columns}
-}, use_container_width=True)
+}, width='stretch')
 
 st.markdown('### By Receipient')
 
@@ -170,11 +170,11 @@ grants_by_recipient = grants.groupby(
 st.dataframe(grants_by_recipient, column_config={
     'Recipient': st.column_config.TextColumn(width='large'),
     'Amount': st.column_config.NumberColumn(step=1)
-}, use_container_width=True)
+}, width='stretch')
 
 st.markdown('### All')
 
 st.dataframe(grants, column_config={
     'Year': st.column_config.NumberColumn(format='%d'),
     'Amount': st.column_config.NumberColumn(step=1)
-}, use_container_width=True, hide_index=True)
+}, width='stretch', hide_index=True)
