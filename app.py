@@ -111,8 +111,19 @@ st.markdown('# Animal Welfare Dashboard')
 
 st.markdown('## Net Global Welfare')
 
-species = st.multiselect('Select Species', welfare_params.columns, default=[
-    'Cattle', 'Chickens', 'Pigs', 'Carp', 'Other Fish', 'Shrimp'])
+default_species = [
+    'Cattle', 'Chickens', 'Pigs', 'Carp', 'Other Fish', 'Shrimp']
+
+if "species" in st.query_params:
+    qp_species = st.query_params.get_all("species")
+    if qp_species:
+        # Filter to ensure they are valid options
+        valid_species = set(welfare_params.columns)
+        filtered_species = [s for s in qp_species if s in valid_species]
+        if filtered_species:
+            default_species = filtered_species
+
+species = st.multiselect('Select Species', welfare_params.columns, default=default_species)
 if not species:
     species = welfare_params.columns
 
@@ -123,19 +134,87 @@ with st.expander('Welfare Parameters'):
     with range_col:
         st.markdown('### Welfare Range (0 to 1)')
         for col in species:
+            default_range = welfare_params.loc['range', col]
+            param_key = f"range_{col}"
+            if param_key in st.query_params:
+                try:
+                    # st.query_params returns a string or list. We take the last one if it's a list (though get() handles simple keys).
+                    # Actually st.query_params object acts like a dict in newer streamlit versions.
+                    val = float(st.query_params[param_key])
+                    if 0.0 <= val <= 1.0:
+                        default_range = val
+                except (ValueError, TypeError):
+                    pass
+            
             user_welfare_params.loc['range', col] = st.slider(
-                col, 0.0, 1.0, welfare_params.loc['range', col])
+                col, 0.0, 1.0, default_range)
 
     with value_col:
         st.markdown('### Welfare Value (-1 to 1)')
         for col in species:
-            user_welfare_params.loc['value', col] = st.slider(
-                col, -1.0, 1.0, welfare_params.loc['value', col])
+            default_value = welfare_params.loc['value', col]
+            param_key = f"value_{col}"
+            if param_key in st.query_params:
+                try:
+                    val = float(st.query_params[param_key])
+                    if -1.0 <= val <= 1.0:
+                        default_value = val
+                except (ValueError, TypeError):
+                    pass
 
+            user_welfare_params.loc['value', col] = st.slider(
+                col, -1.0, 1.0, default_value)
+
+
+default_countries = ['China', 'India', 'United States of America']
+all_countries = population.index.get_level_values(0).unique().tolist()
+
+if "countries" in st.query_params:
+    qp_countries = st.query_params.get_all("countries")
+    if qp_countries:
+        valid_countries = set(all_countries)
+        filtered_countries = [c for c in qp_countries if c in valid_countries]
+        if filtered_countries:
+            default_countries = filtered_countries
 
 countries = st.multiselect(
-    'Select Countries', population.index.get_level_values(0).unique().tolist(), default=[
-        'China', 'India', 'United States of America'])
+    'Select Countries', all_countries, default=default_countries)
+
+# Share Link Logic
+import urllib.parse
+
+current_params = {}
+if species:
+    current_params["species"] = species
+if countries:
+    current_params["countries"] = countries
+
+# Add welfare parameters for selected species
+for col in species:
+    # Use the current values from user_welfare_params which were updated by sliders
+    r_val = user_welfare_params.loc['range', col]
+    v_val = user_welfare_params.loc['value', col]
+    current_params[f"range_{col}"] = r_val
+    current_params[f"value_{col}"] = v_val
+
+# Update browser URL
+# st.query_params.clear()
+# st.query_params.update(current_params)
+
+# Generate and display share link
+encoded_params = urllib.parse.urlencode(current_params, doseq=True)
+# st.context.url returns the URL without query params or anchors
+base_url = st.context.url
+share_url = f"{base_url}?{encoded_params}"
+
+col_share, col_reset = st.columns([1, 1], gap="small")
+with col_share:
+    with st.popover("Share", use_container_width=True):
+        st.code(share_url, language='text')
+with col_reset:
+    if st.button("Reset", use_container_width=True):
+        st.query_params.clear()
+        st.rerun()
 
 species_col, country_col = st.columns(2)
 with species_col:
