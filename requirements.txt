@@ -1,7 +1,0 @@
-anthropic
-jupyter
-matplotlib
-pandas
-plotly
-python-dotenv
-streamlit

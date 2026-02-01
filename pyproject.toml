@@ -1,0 +1,15 @@
+[project]
+name = "animal-welfare-research"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.77.0",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.8",
+    "pandas>=2.3.3",
+    "plotly>=6.5.2",
+    "python-dotenv>=1.2.1",
+    "streamlit>=1.53.1",
+]
