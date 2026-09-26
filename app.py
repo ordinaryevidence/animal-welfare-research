@@ -242,7 +242,7 @@ st.dataframe(grants_by_org, column_config={
     **{key: st.column_config.NumberColumn(step=1) for key in grants_by_org.columns}
 }, width='stretch')
 
-st.markdown('### By Receipient')
+st.markdown('### By Recipient')
 
 grants_by_recipient = grants.groupby(
     'Recipient')['Amount'].sum().sort_values(ascending=False)
