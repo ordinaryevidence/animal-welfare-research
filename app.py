@@ -272,13 +272,15 @@ with grants_tab:
 
     grants_by_recipient = grants.groupby('Recipient').agg(
         first_year=('Year', 'min'), last_year=('Year', 'max'),
+        count=('Amount', 'size'), average=('Amount', 'mean'),
         amount=('Amount', 'sum')).sort_values('amount', ascending=False)
-    grants_by_recipient.columns = ['First Year', 'Last Year', 'Amount']
-    grants_by_recipient['Amount'] = grants_by_recipient['Amount'].round()
+    grants_by_recipient.columns = ['First Year', 'Last Year', '# Grants', 'Average', 'Amount']
+    grants_by_recipient[['Average', 'Amount']] = grants_by_recipient[['Average', 'Amount']].round()
     st.dataframe(grants_by_recipient, column_config={
-        'Recipient': st.column_config.TextColumn(width='large'),
         'First Year': st.column_config.NumberColumn(format='%d'),
         'Last Year': st.column_config.NumberColumn(format='%d'),
+        '# Grants': st.column_config.NumberColumn(format='localized'),
+        'Average': st.column_config.NumberColumn(format='localized'),
         'Amount': st.column_config.NumberColumn(format='localized')
     }, width='stretch')
 
