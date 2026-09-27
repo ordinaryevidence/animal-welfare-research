@@ -1,3 +1,5 @@
+import urllib.parse
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -108,152 +110,152 @@ def update_countries_graphs(countries, user_welfare_params):
 
 
 st.markdown('# Animal Welfare Dashboard')
+st.caption('Last updated September 2026')
 
-st.markdown('## Net Global Welfare')
+welfare_tab, grants_tab = st.tabs(['Net Global Welfare', 'Animal Welfare Grants'])
 
-default_species = [
-    'Cattle', 'Chickens', 'Pigs', 'Carp', 'Other Fish', 'Shrimp']
+with welfare_tab:
+    default_species = [
+        'Cattle', 'Chickens', 'Pigs', 'Carp', 'Other Fish', 'Shrimp']
 
-if "species" in st.query_params:
-    qp_species = st.query_params.get_all("species")
-    if qp_species:
-        # Filter to ensure they are valid options
-        valid_species = set(welfare_params.columns)
-        filtered_species = [s for s in qp_species if s in valid_species]
-        if filtered_species:
-            default_species = filtered_species
+    if "species" in st.query_params:
+        qp_species = st.query_params.get_all("species")
+        if qp_species:
+            # Filter to ensure they are valid options
+            valid_species = set(welfare_params.columns)
+            filtered_species = [s for s in qp_species if s in valid_species]
+            if filtered_species:
+                default_species = filtered_species
 
-species = st.multiselect('Select Species', welfare_params.columns, default=default_species)
-if not species:
-    species = welfare_params.columns
+    species = st.multiselect('Select Species', welfare_params.columns, default=default_species)
+    if not species:
+        species = welfare_params.columns
 
-with st.expander('Welfare Parameters'):
-    range_col, value_col = st.columns(2)
-    user_welfare_params = pd.DataFrame(
-        index=welfare_params.index, columns=species)
-    with range_col:
-        st.markdown('### Welfare Range (0 to 1)')
-        for col in species:
-            default_range = welfare_params.loc['range', col]
-            param_key = f"range_{col}"
-            if param_key in st.query_params:
-                try:
-                    # st.query_params returns a string or list. We take the last one if it's a list (though get() handles simple keys).
-                    # Actually st.query_params object acts like a dict in newer streamlit versions.
-                    val = float(st.query_params[param_key])
-                    if 0.0 <= val <= 1.0:
-                        default_range = val
-                except (ValueError, TypeError):
-                    pass
-            
-            user_welfare_params.loc['range', col] = st.slider(
-                col, 0.0, 1.0, default_range)
+    with st.expander('Welfare Parameters'):
+        range_col, value_col = st.columns(2)
+        user_welfare_params = pd.DataFrame(
+            index=welfare_params.index, columns=species)
+        with range_col:
+            st.markdown('### Welfare Range (0 to 1)')
+            for col in species:
+                default_range = welfare_params.loc['range', col]
+                param_key = f"range_{col}"
+                if param_key in st.query_params:
+                    try:
+                        # st.query_params returns a string or list. We take the last one if it's a list (though get() handles simple keys).
+                        # Actually st.query_params object acts like a dict in newer streamlit versions.
+                        val = float(st.query_params[param_key])
+                        if 0.0 <= val <= 1.0:
+                            default_range = val
+                    except (ValueError, TypeError):
+                        pass
 
-    with value_col:
-        st.markdown('### Welfare Value (-1 to 1)')
-        for col in species:
-            default_value = welfare_params.loc['value', col]
-            param_key = f"value_{col}"
-            if param_key in st.query_params:
-                try:
-                    val = float(st.query_params[param_key])
-                    if -1.0 <= val <= 1.0:
-                        default_value = val
-                except (ValueError, TypeError):
-                    pass
+                user_welfare_params.loc['range', col] = st.slider(
+                    col, 0.0, 1.0, default_range)
 
-            user_welfare_params.loc['value', col] = st.slider(
-                col, -1.0, 1.0, default_value)
+        with value_col:
+            st.markdown('### Welfare Value (-1 to 1)')
+            for col in species:
+                default_value = welfare_params.loc['value', col]
+                param_key = f"value_{col}"
+                if param_key in st.query_params:
+                    try:
+                        val = float(st.query_params[param_key])
+                        if -1.0 <= val <= 1.0:
+                            default_value = val
+                    except (ValueError, TypeError):
+                        pass
+
+                user_welfare_params.loc['value', col] = st.slider(
+                    col, -1.0, 1.0, default_value)
 
 
-default_countries = ['China', 'India', 'United States of America']
-all_countries = population.index.get_level_values(0).unique().tolist()
+    default_countries = ['China', 'India', 'United States of America']
+    all_countries = population.index.get_level_values(0).unique().tolist()
 
-if "countries" in st.query_params:
-    qp_countries = st.query_params.get_all("countries")
-    if qp_countries:
-        valid_countries = set(all_countries)
-        filtered_countries = [c for c in qp_countries if c in valid_countries]
-        if filtered_countries:
-            default_countries = filtered_countries
+    if "countries" in st.query_params:
+        qp_countries = st.query_params.get_all("countries")
+        if qp_countries:
+            valid_countries = set(all_countries)
+            filtered_countries = [c for c in qp_countries if c in valid_countries]
+            if filtered_countries:
+                default_countries = filtered_countries
 
-countries = st.multiselect(
-    'Select Countries', all_countries, default=default_countries)
+    countries = st.multiselect(
+        'Select Countries', all_countries, default=default_countries)
 
-# Share Link Logic
-import urllib.parse
+    # Share Link Logic
+    current_params = {}
+    if species:
+        current_params["species"] = species
+    if countries:
+        current_params["countries"] = countries
 
-current_params = {}
-if species:
-    current_params["species"] = species
-if countries:
-    current_params["countries"] = countries
+    # Add welfare parameters for selected species
+    for col in species:
+        # Use the current values from user_welfare_params which were updated by sliders
+        r_val = user_welfare_params.loc['range', col]
+        v_val = user_welfare_params.loc['value', col]
+        current_params[f"range_{col}"] = r_val
+        current_params[f"value_{col}"] = v_val
 
-# Add welfare parameters for selected species
-for col in species:
-    # Use the current values from user_welfare_params which were updated by sliders
-    r_val = user_welfare_params.loc['range', col]
-    v_val = user_welfare_params.loc['value', col]
-    current_params[f"range_{col}"] = r_val
-    current_params[f"value_{col}"] = v_val
+    # Update browser URL
+    # st.query_params.clear()
+    # st.query_params.update(current_params)
 
-# Update browser URL
-# st.query_params.clear()
-# st.query_params.update(current_params)
+    # Generate and display share link
+    encoded_params = urllib.parse.urlencode(current_params, doseq=True)
+    # st.context.url returns the URL without query params or anchors
+    base_url = st.context.url
+    share_url = f"{base_url}?{encoded_params}"
 
-# Generate and display share link
-encoded_params = urllib.parse.urlencode(current_params, doseq=True)
-# st.context.url returns the URL without query params or anchors
-base_url = st.context.url
-share_url = f"{base_url}?{encoded_params}"
+    col_share, col_reset = st.columns([1, 1], gap="small")
+    with col_share:
+        with st.popover("Share", use_container_width=True):
+            st.code(share_url, language='text')
+    with col_reset:
+        if st.button("Reset", use_container_width=True):
+            st.query_params.clear()
+            st.rerun()
 
-col_share, col_reset = st.columns([1, 1], gap="small")
-with col_share:
-    with st.popover("Share", use_container_width=True):
-        st.code(share_url, language='text')
-with col_reset:
-    if st.button("Reset", use_container_width=True):
-        st.query_params.clear()
-        st.rerun()
+    species_col, country_col = st.columns(2)
+    with species_col:
+        figs = update_species_graphs(countries, user_welfare_params)
+        st.markdown('### Species Graphs')
+        for fig in figs:
+            st.plotly_chart(fig, width='stretch')
 
-species_col, country_col = st.columns(2)
-with species_col:
-    figs = update_species_graphs(countries, user_welfare_params)
-    st.markdown('### Species Graphs')
-    for fig in figs:
-        st.plotly_chart(fig, width='stretch')
+    with country_col:
+        figs = update_countries_graphs(countries, user_welfare_params)
+        st.markdown('### Country Graphs')
+        for fig in figs:
+            st.plotly_chart(fig, width='stretch')
 
-with country_col:
-    figs = update_countries_graphs(countries, user_welfare_params)
-    st.markdown('### Country Graphs')
-    for fig in figs:
-        st.plotly_chart(fig, width='stretch')
+with grants_tab:
+    st.markdown('### By Organization')
 
-st.markdown('## Animal Welfare Grants')
+    grants_by_org = grants.pivot_table(
+        columns='Organization', index='Year', values='Amount', aggfunc='sum')
+    grants_by_org['Total'] = grants_by_org.sum(axis=1)
+    grants_by_org = grants_by_org.fillna(0).round()
 
-st.markdown('### By Organization')
+    st.dataframe(grants_by_org, column_config={
+        'Year': st.column_config.NumberColumn(format='%d'),
+        **{key: st.column_config.NumberColumn(format='localized') for key in grants_by_org.columns}
+    }, width='stretch', height='content')
 
-grants_by_org = grants.pivot_table(
-    columns='Organization', index='Year', values='Amount', aggfunc='sum')
-grants_by_org['Total'] = grants_by_org.sum(axis=1)
+    st.markdown('### By Recipient')
 
-st.dataframe(grants_by_org, column_config={
-    'Year': st.column_config.NumberColumn(format='%d'),
-    **{key: st.column_config.NumberColumn(step=1) for key in grants_by_org.columns}
-}, width='stretch')
+    grants_by_recipient = grants.groupby(
+        'Recipient')['Amount'].sum().round().sort_values(ascending=False)
+    st.dataframe(grants_by_recipient, column_config={
+        'Recipient': st.column_config.TextColumn(width='large'),
+        'Amount': st.column_config.NumberColumn(format='localized')
+    }, width='stretch')
 
-st.markdown('### By Recipient')
+    st.markdown('### All')
 
-grants_by_recipient = grants.groupby(
-    'Recipient')['Amount'].sum().sort_values(ascending=False)
-st.dataframe(grants_by_recipient, column_config={
-    'Recipient': st.column_config.TextColumn(width='large'),
-    'Amount': st.column_config.NumberColumn(step=1)
-}, width='stretch')
-
-st.markdown('### All')
-
-st.dataframe(grants, column_config={
-    'Year': st.column_config.NumberColumn(format='%d'),
-    'Amount': st.column_config.NumberColumn(step=1)
-}, width='stretch', hide_index=True)
+    st.dataframe(grants.round({'Amount': 0}), column_config={
+        'Year': st.column_config.NumberColumn(format='%d'),
+        'Amount': st.column_config.NumberColumn(format='localized')
+    }, width='stretch', hide_index=True)
