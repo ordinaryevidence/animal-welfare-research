@@ -23,4 +23,4 @@ Grant data lives in the "Animal Welfare Grants" Google Sheet, with one tab per s
 - **Animal Welfare Fund**: EA Funds [grants](https://funds.effectivealtruism.org/grants) from the Animal Welfare Fund.
 - **Animal Charity Evaluators**: [Movement Grants](https://animalcharityevaluators.org/movement-grants/past-movement-grants-recipients/) and [Recommended Charity Fund](https://animalcharityevaluators.org/donate/donor-resources/recommended-charity-fund/past-distributions/) distributions.
 
-To update, export the "All" tab to `data/Animal Welfare Grants - All.csv` and run the first three cells of `grants-analysis.ipynb` to write `data/grants.csv`, then update the "Last updated" caption in `app.py`. The current year is partial.
+To update, export the "All" tab to `data/Animal Welfare Grants - All.csv` and run the first three cells of `grants-analysis.ipynb` to write `data/grants.csv`, then update the "Last updated" caption in `app.py`.

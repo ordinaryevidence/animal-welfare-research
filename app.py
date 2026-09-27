@@ -253,8 +253,8 @@ with welfare_tab:
 
 with grants_tab:
     st.markdown(
-        "Animal welfare grants in US dollars by year awarded, from funders that "
-        "publish their grants. The current year is partial.")
+        "Animal welfare grants in US dollars by year awarded, from major funders "
+        "that publish their grants.")
 
     st.markdown('### By Organization')
 
