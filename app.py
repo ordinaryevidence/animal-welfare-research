@@ -115,6 +115,16 @@ st.caption('Last updated September 2026')
 welfare_tab, grants_tab = st.tabs(['Net Global Welfare', 'Animal Welfare Grants'])
 
 with welfare_tab:
+    st.markdown(
+        "Total welfare of farmed animals by species and country since 1961, "
+        "following Kyle Fish's [Net global welfare may be negative and declining]"
+        "(https://forum.effectivealtruism.org/posts/HDFxQwMwPp275J87r/net-global-welfare-may-be-negative-and-declining-1). "
+        "For each species, total welfare is population × welfare range × welfare value. "
+        "The welfare range is a species' capacity for welfare relative to humans, and the "
+        "welfare value is how good or bad its average life is, from -1 to 1. Populations "
+        "count animals alive at any one time, not animals slaughtered per year. Change the "
+        "parameters under Welfare Parameters, and use Share to link to the current view.")
+
     default_species = [
         'Cattle', 'Chickens', 'Pigs', 'Carp', 'Other Fish', 'Shrimp']
 
@@ -231,7 +241,21 @@ with welfare_tab:
         for fig in figs:
             st.plotly_chart(fig, width='stretch')
 
+    st.markdown('''### Sources
+
+- Kyle Fish, [Net global welfare may be negative and declining](https://forum.effectivealtruism.org/posts/HDFxQwMwPp275J87r/net-global-welfare-may-be-negative-and-declining-1), EA Forum, 2023
+- Farmed land animal populations: FAOSTAT, [Crops and livestock products](https://www.fao.org/faostat/en/#data/QCL)
+- Aquaculture production: FAO FishStat, [Global aquaculture production](https://www.fao.org/fishery/en/collection/aquaculture)
+- Farmed fish weights and lifespans: fishcount.org.uk, [Numbers of farmed fishes](https://fishcount.org.uk/fish-count-estimates-2/numbers-of-farmed-fish-slaughtered-each-year)
+- Welfare ranges: Rethink Priorities, [Welfare range estimates](https://rethinkpriorities.org/research-area/welfare-range-estimates/)
+- Welfare values: Charity Entrepreneurship, [Weighted Animal Welfare Index](https://docs.google.com/spreadsheets/d/1dWzh0Se0nhbPxe2Ye3o-tr3BoOBtdiCbMkpPuw2rBFE)
+''')
+
 with grants_tab:
+    st.markdown(
+        "Animal welfare grants in US dollars by year awarded, from funders that "
+        "publish their grants. The current year is partial.")
+
     st.markdown('### By Organization')
 
     grants_by_org = grants.pivot_table(
@@ -259,3 +283,10 @@ with grants_tab:
         'Year': st.column_config.NumberColumn(format='%d'),
         'Amount': st.column_config.NumberColumn(format='localized')
     }, width='stretch', hide_index=True)
+
+    st.markdown('''### Sources
+
+- Coefficient Giving, [Farm Animal Welfare grants](https://coefficientgiving.org/funds/farm-animal-welfare/)
+- EA Funds, [Animal Welfare Fund grants](https://funds.effectivealtruism.org/grants)
+- Animal Charity Evaluators, [Movement Grants recipients](https://animalcharityevaluators.org/movement-grants/past-movement-grants-recipients/) and [Recommended Charity Fund distributions](https://animalcharityevaluators.org/donate/donor-resources/recommended-charity-fund/past-distributions/)
+''')
