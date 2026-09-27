@@ -270,10 +270,15 @@ with grants_tab:
 
     st.markdown('### By Recipient')
 
-    grants_by_recipient = grants.groupby(
-        'Recipient')['Amount'].sum().round().sort_values(ascending=False)
+    grants_by_recipient = grants.groupby('Recipient').agg(
+        first_year=('Year', 'min'), last_year=('Year', 'max'),
+        amount=('Amount', 'sum')).sort_values('amount', ascending=False)
+    grants_by_recipient.columns = ['First Year', 'Last Year', 'Amount']
+    grants_by_recipient['Amount'] = grants_by_recipient['Amount'].round()
     st.dataframe(grants_by_recipient, column_config={
         'Recipient': st.column_config.TextColumn(width='large'),
+        'First Year': st.column_config.NumberColumn(format='%d'),
+        'Last Year': st.column_config.NumberColumn(format='%d'),
         'Amount': st.column_config.NumberColumn(format='localized')
     }, width='stretch')
 
